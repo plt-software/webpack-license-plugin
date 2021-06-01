@@ -2,4 +2,3 @@ coverage
 node_modules
 public
 yarn-error.log
-dist
