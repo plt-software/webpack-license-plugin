@@ -1,9 +1,10 @@
 import * as webpack from 'webpack'
+import { Compilation } from 'webpack'
 import IWebpackChunkModule from './types/IWebpackChunkModule'
 
 type Chunk = Partial<
   Pick<
-    webpack.compilation.Chunk & {
+    webpack.Chunk & {
       forEachModule?: (callback: (module: IWebpackChunkModule) => void) => void
       modules?: IWebpackChunkModule[]
     },
@@ -13,23 +14,12 @@ type Chunk = Partial<
 
 export default class WebpackChunkModuleIterator {
   public iterateModules(
+    compilation: Compilation,
     chunk: Chunk,
     callback: (module: IWebpackChunkModule) => void
   ): void {
-    if (typeof chunk.modulesIterable !== 'undefined') {
-      for (const module of chunk.modulesIterable) {
-        callback(module)
-      }
-      // } else if (typeof chunk.getModules === 'function') {
-      //   chunk.getModules().forEach(callback)
-    } else if (typeof chunk.forEachModule === 'function') {
-      chunk.forEachModule(callback)
-    } else if (Array.isArray(chunk.modules)) {
-      chunk.modules.forEach(module => callback(module))
-    }
-
-    if (chunk.entryModule) {
-      callback(chunk.entryModule)
-    }
+    compilation.chunkGraph.getChunkModules(chunk as any).forEach((module) => {
+      callback(module);
+    })
   }
 }

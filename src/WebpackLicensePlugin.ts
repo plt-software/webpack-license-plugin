@@ -23,44 +23,33 @@ const pluginName = 'WebpackLicensePlugin'
  * @todo preferred license types on ambiguity (licenses array or spdx expression)
  */
 export default class WebpackLicensePlugin implements IWebpackPlugin {
-  constructor(private pluginOptions: Partial<IPluginOptions> = {}) {}
+  constructor(private pluginOptions: Partial<IPluginOptions> = {}) {
+  }
 
   public apply(compiler: webpack.Compiler) {
     if (typeof compiler.hooks !== 'undefined') {
-      compiler.hooks.compilation.tap(
+      compiler.hooks.thisCompilation.tap(
         'webpack-license-plugin',
-        this.handleCompilation.bind(this, compiler)
-      )
-    } else if (typeof compiler.plugin !== 'undefined') {
-      compiler.plugin(
-        'compilation',
-        this.handleCompilation.bind(this, compiler)
-      )
+        this.handleCompilation.bind(this, compiler));
     }
   }
 
-  public handleCompilation(
-    compiler: webpack.Compiler,
-    compilation: webpack.compilation.Compilation
-  ) {
-    if (typeof compilation.hooks !== 'undefined') {
-      compilation.hooks.optimizeChunkAssets.tapAsync(
-        'webpack-license-plugin',
-        this.handleChunkAssetOptimization.bind(this, compiler, compilation)
-      )
-    } else if (typeof compilation.plugin !== 'undefined') {
-      compilation.plugin(
-        'optimize-chunk-assets',
-        this.handleChunkAssetOptimization.bind(this, compiler, compilation)
-      )
-    }
+  private handleCompilation(
+    compiler: webpack.Compiler, 
+    compilation: webpack.Compilation
+    ) {
+          compilation.hooks.processAssets.tapPromise(
+            {
+              name: 'webpack-license-plugin',
+              stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL,
+            },
+            this.handleProcessAssets.bind(this, compiler, compilation, null)
+          );
   }
 
-  public async handleChunkAssetOptimization(
+  public async handleProcessAssets(
     compiler: webpack.Compiler,
-    compilation: webpack.compilation.Compilation,
-    chunks: webpack.compilation.Chunk[],
-    callback: () => void
+    compilation: webpack.Compilation,
   ) {
     const alertAggregator = new WebpackAlertAggregator(compilation)
     const optionsProvider = new OptionsProvider(alertAggregator)
@@ -68,8 +57,9 @@ export default class WebpackLicensePlugin implements IWebpackPlugin {
     const options = optionsProvider.getOptions(this.pluginOptions)
     alertAggregator.flushAlerts(pluginName)
 
-    const chunkIterator = new WebpackChunkIterator()
-    const filenames = chunkIterator.iterateChunks(chunks)
+
+    const chunkIterator = new WebpackChunkIterator(compilation)
+    const filenames = chunkIterator.iterateChunks(Array.from(compilation.chunks))
 
     const fileSystem = new WebpackFileSystem(compiler.inputFileSystem)
     const packageJsonReader = new PackageJsonReader(fileSystem)
@@ -90,9 +80,5 @@ export default class WebpackLicensePlugin implements IWebpackPlugin {
 
     await licenseFileWriter.writeLicenseFiles(filenames, options)
     alertAggregator.flushAlerts(pluginName)
-
-    if (callback) {
-      callback()
-    }
   }
 }
