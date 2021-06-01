@@ -34,6 +34,7 @@
     "clean": "shx rm -rf dist",
     "lint": "tslint 'src/**/*.ts' --project tsconfig.json",
     "build": "yarn run lint && yarn run clean && tsc",
+    "install": "yarn run build",
     "install:e2e": "cd test/e2e/example && yarn",
     "manual": "yarn run build && webpack --config test/e2e/webpack.config.js",
     "prepublishOnly": "yarn run build",
